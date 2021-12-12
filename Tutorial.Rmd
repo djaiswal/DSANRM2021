@@ -1,0 +1,172 @@
+---
+title: "DSANRM Tutorial"
+author: "Deepak Jaiswal"
+date: "04/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(BioCro)
+```
+
+## Locations
+1. Ahmedabad, Gujarat (23.03788, 72.59415) 
+2. Allahabad, Uttar Pradesh (23.43605,81.84312)
+3. Palakkad, Kerala (10.78564,76.65541)
+
+Website to download the data (https://power.larc.nasa.gov/data-access-viewer/) 
+
+1. User Community: Agroclimatology 
+2. Temporal Average: Hourly
+3. Enter Lat/Lon: Three locations & corresponding filenames
+4. Start Date: 01/01/2001
+5. End Date: 12//32/2020
+6. Selected Output File Format: CSV
+7. Select Parameters:
+8. All Sky Surface Photosynthetically Active Radiation
+9. Temperature at 2 Meters
+10. Relative Humidity at 2 Meters
+11. Precipitation
+12. Wind Speed at 2 Meters
+
+## Read downloaded weather records and compare three locations
+```{r}
+ahmedabad <- read.csv("Ahmedabad.csv", skip=13,header = TRUE)
+allahabad <- read.csv("Allahabad.csv", skip = 13, header = TRUE)
+palakkad <- read.csv("Palakkad.csv",skip = 13, header = TRUE)
+```
+
+## Loading modules required for sugarcane simulations
+```{r}
+source("initial_state.R")
+source("ss_modules_list_nowaterstress.R")
+source("deriv_modules_list_with_miscanthus_senescence.R")
+source("parameters_list_nowaterstress_miscanthus_senescence.R")
+```
+
+## Loading (precalibrated/validated) parameters & initial conditions  required for sugarcane simulations
+```{r}
+source("parameters_list_nowaterstress_miscanthus_senescence.R")
+source("initial_state.R")
+```
+
+## Defininf output dataframe
+1. Planting date: February 1, Harvest date: November 30 
+2. No effect of ratooning is included (simulations only for plant crop) 
+3. No nutrient (N/P/K) limitations 
+4. No irrigation (Water stress is controlled by rainfall) 
+```{r}
+output_yield = data.frame(ahmedabad = numeric(20), palakkad = numeric(20), allahabad = numeric(20))
+```
+
+
+## Simulations for Ahmedabad
+```{r, result=FALSE}
+result_index = 1
+for (year in 2001:2020){
+weather_one_year <- ahmedabad[ahmedabad$YEAR==year,]
+num_of_days <- dim(weather_one_year)[1]/24
+doy_index = 1
+for (i in 1:num_of_days){
+weather_one_year$doy[doy_index:(doy_index+23)]=i
+doy_index = doy_index+24
+}
+
+weather_input_for_BioCro <- data.frame(year = weather_one_year$YEAR, doy = weather_one_year$doy,hour=weather_one_year$HR,
+                  solar= (weather_one_year$ALLSKY_SFC_PAR_TOT*4),
+                  temp = weather_one_year$T2M,
+                  rh = (weather_one_year$RH2M*0.01), windspeed =  weather_one_year$WS2M,
+                  precip=weather_one_year$PRECTOTCORR,
+                  solardiff=(weather_one_year$ALLSKY_SFC_PAR_TOT*2))
+
+result <- Gro_solver(initial_state =  initial_state,
+                     parameters = parameters_list,
+                     varying_parameters = weather_input_for_BioCro,
+                     steady_state_module_names = ss_modules_list,
+                     derivative_module_names = deriv_modules_list, verbose = TRUE)
+
+output_yield$ahmedabad[result_index] = max(result$Stem)
+result_index = result_index+1
+}
+
+```
+
+
+## Simulations for Allahabad
+```{r, results=FALSE}
+result_index = 1
+for (year in 2001:2020){
+weather_one_year <- allahabad[allahabad$YEAR==year,]
+num_of_days <- dim(weather_one_year)[1]/24
+doy_index = 1
+for (i in 1:num_of_days){
+weather_one_year$doy[doy_index:(doy_index+23)]=i
+doy_index = doy_index+24
+}
+
+weather_input_for_BioCro <- data.frame(year = weather_one_year$YEAR, doy = weather_one_year$doy,hour=weather_one_year$HR,
+                  solar= (weather_one_year$ALLSKY_SFC_PAR_TOT*4),
+                  temp = weather_one_year$T2M,
+                  rh = (weather_one_year$RH2M*0.01), windspeed =  weather_one_year$WS2M,
+                  precip=weather_one_year$PRECTOTCORR,
+                  solardiff=(weather_one_year$ALLSKY_SFC_PAR_TOT*2))
+
+result <- Gro_solver(initial_state =  initial_state,
+                     parameters = parameters_list,
+                     varying_parameters = weather_input_for_BioCro,
+                     steady_state_module_names = ss_modules_list,
+                     derivative_module_names = deriv_modules_list, verbose = TRUE)
+
+output_yield$allahabad[result_index] = max(result$Stem)
+result_index = result_index+1
+}
+
+```
+
+## Simulations for Palakkad
+```{r, results=FALSE}
+result_index = 1
+for (year in 2001:2020){
+weather_one_year <- palakkad[palakkad$YEAR==year,]
+num_of_days <- dim(weather_one_year)[1]/24
+doy_index = 1
+for (i in 1:num_of_days){
+weather_one_year$doy[doy_index:(doy_index+23)]=i
+doy_index = doy_index+24
+}
+
+weather_input_for_BioCro <- data.frame(year = weather_one_year$YEAR, doy = weather_one_year$doy,hour=weather_one_year$HR,
+                  solar= (weather_one_year$ALLSKY_SFC_PAR_TOT*4),
+                  temp = weather_one_year$T2M,
+                  rh = (weather_one_year$RH2M*0.01), windspeed =  weather_one_year$WS2M,
+                  precip=weather_one_year$PRECTOTCORR,
+                  solardiff=(weather_one_year$ALLSKY_SFC_PAR_TOT*2))
+
+result <- Gro_solver(initial_state =  initial_state,
+                     parameters = parameters_list,
+                     varying_parameters = weather_input_for_BioCro,
+                     steady_state_module_names = ss_modules_list,
+                     derivative_module_names = deriv_modules_list, verbose = TRUE)
+
+output_yield$palakkad[result_index] = max(result$Stem)
+result_index = result_index+1
+}
+
+```
+
+
+## Plotting results
+```{r}
+output_yield$year <- seq(2001:2020)
+png(file="sugarcane_yield_comparison.png")
+lattice::xyplot(palakkad+ahmedabad+allahabad~year, data=output_yield, type = "l", auto.key=TRUE)
+dev.off()
+
+write.csv(output_yield, file="sugarcane_yield_comparison.csv")
+
+```
+
+
+
